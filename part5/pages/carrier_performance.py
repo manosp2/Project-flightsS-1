@@ -413,8 +413,6 @@ scorecard.columns = [
 
 st.dataframe(
     scorecard.style
-        .background_gradient(subset=["On-Time %"], cmap="RdYlGn", vmin=50, vmax=90)
-        .background_gradient(subset=["Cancellation %"], cmap="RdYlGn_r", vmin=0, vmax=5)
         .format({
             "Total Flights": "{:,}",
             "On-Time %": "{:.1f}%",
