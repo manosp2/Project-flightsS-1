@@ -43,7 +43,7 @@ def _filter_sql(
         WHERE f.origin IN ({origin_ph})
           AND f.month IN ({month_ph})
           {dest_sql}
-          AND f.cancelled = 0
+            AND f.dep_time IS NOT NULL
           AND p.seats IS NOT NULL
     """
     return where_sql, tuple(params)
@@ -202,7 +202,7 @@ def get_monthly_capacity_df(
           ON f.tailnum = p.tailnum
         WHERE f.origin IN ({origin_ph})
           {dest_sql}
-          AND f.cancelled = 0
+                    AND f.dep_time IS NOT NULL
           AND p.seats IS NOT NULL
         GROUP BY f.month
         ORDER BY f.month
