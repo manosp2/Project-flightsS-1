@@ -1,5 +1,5 @@
 # Multi-stage build for optimized image size
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 # Set working directory
 WORKDIR /app
@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY "requirements.txt " .
 
 # Install Python dependencies in a builder stage
-FROM base as builder
+FROM base AS builder
 
 WORKDIR /app
 COPY "requirements.txt " .
