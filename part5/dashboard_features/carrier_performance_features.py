@@ -25,12 +25,12 @@ def get_carrier_overview_df() -> pd.DataFrame:
             f.carrier,
             a.name AS airline,
             COUNT(*) AS total_flights,
-            ROUND(AVG(CASE WHEN f.dep_delay <= 15 AND f.cancelled = 0 THEN 100.0 ELSE 0.0 END), 1) AS on_time_pct,
-            ROUND(AVG(CASE WHEN f.dep_delay > 0 AND f.cancelled = 0 THEN f.dep_delay END), 1) AS avg_dep_delay,
-            ROUND(AVG(CASE WHEN f.arr_delay > 0 AND f.cancelled = 0 THEN f.arr_delay END), 1) AS avg_arr_delay,
-            ROUND(100.0 * SUM(f.cancelled) / COUNT(*), 2) AS cancellation_pct,
-            ROUND(AVG(CASE WHEN f.cancelled = 0 THEN f.air_time END), 1) AS avg_air_time,
-            ROUND(AVG(CASE WHEN f.cancelled = 0 THEN f.distance END), 0) AS avg_distance
+            ROUND(AVG(CASE WHEN f.dep_delay <= 15 AND f.dep_time IS NOT NULL THEN 100.0 ELSE 0.0 END), 1) AS on_time_pct,
+            ROUND(AVG(CASE WHEN f.dep_delay > 0 AND f.dep_time IS NOT NULL THEN f.dep_delay END), 1) AS avg_dep_delay,
+            ROUND(AVG(CASE WHEN f.arr_delay > 0 AND f.dep_time IS NOT NULL THEN f.arr_delay END), 1) AS avg_arr_delay,
+            ROUND(100.0 * SUM(CASE WHEN f.dep_time IS NULL THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_pct,
+            ROUND(AVG(CASE WHEN f.dep_time IS NOT NULL THEN f.air_time END), 1) AS avg_air_time,
+            ROUND(AVG(CASE WHEN f.dep_time IS NOT NULL THEN f.distance END), 0) AS avg_distance
         FROM flights f
         LEFT JOIN airlines a ON f.carrier = a.carrier
         GROUP BY f.carrier, a.name
@@ -52,9 +52,9 @@ def get_carrier_kpis(carriers: list[str], origin: str) -> dict:
     sql = f"""
         SELECT
             COUNT(*) AS total_flights,
-            ROUND(AVG(CASE WHEN f.dep_delay <= 15 AND f.cancelled = 0 THEN 100.0 ELSE 0.0 END), 1) AS on_time_pct,
-            ROUND(AVG(CASE WHEN f.dep_delay > 0 AND f.cancelled = 0 THEN f.dep_delay END), 1) AS avg_dep_delay,
-            ROUND(100.0 * SUM(f.cancelled) / COUNT(*), 2) AS cancellation_pct
+            ROUND(AVG(CASE WHEN f.dep_delay <= 15 AND f.dep_time IS NOT NULL THEN 100.0 ELSE 0.0 END), 1) AS on_time_pct,
+            ROUND(AVG(CASE WHEN f.dep_delay > 0 AND f.dep_time IS NOT NULL THEN f.dep_delay END), 1) AS avg_dep_delay,
+            ROUND(100.0 * SUM(CASE WHEN f.dep_time IS NULL THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_pct
         FROM flights f
         WHERE 1=1 {carrier_filter} {origin_filter}
     """
@@ -76,10 +76,10 @@ def get_carrier_status_breakdown_df(carriers: list[str], origin: str) -> pd.Data
         SELECT
             f.carrier,
             a.name AS airline,
-            ROUND(100.0 * SUM(CASE WHEN f.cancelled = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancelled_pct,
-            ROUND(100.0 * SUM(CASE WHEN f.cancelled = 0 AND f.dep_delay > 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS delayed_pct,
-            ROUND(100.0 * SUM(CASE WHEN f.cancelled = 0 AND f.dep_delay > 0 AND f.dep_delay <= 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS slightly_late_pct,
-            ROUND(100.0 * SUM(CASE WHEN f.cancelled = 0 AND (f.dep_delay <= 0 OR f.dep_delay IS NULL) THEN 1 ELSE 0 END) / COUNT(*), 2) AS on_time_pct
+            ROUND(100.0 * SUM(CASE WHEN f.dep_time IS NULL THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancelled_pct,
+            ROUND(100.0 * SUM(CASE WHEN f.dep_time IS NOT NULL AND f.dep_delay > 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS delayed_pct,
+            ROUND(100.0 * SUM(CASE WHEN f.dep_time IS NOT NULL AND f.dep_delay > 0 AND f.dep_delay <= 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS slightly_late_pct,
+            ROUND(100.0 * SUM(CASE WHEN f.dep_time IS NOT NULL AND (f.dep_delay <= 0 OR f.dep_delay IS NULL) THEN 1 ELSE 0 END) / COUNT(*), 2) AS on_time_pct
         FROM flights f
         LEFT JOIN airlines a ON f.carrier = a.carrier
         WHERE 1=1 {carrier_filter} {origin_filter}
@@ -103,8 +103,8 @@ def get_carrier_avg_delay_df(carriers: list[str], origin: str) -> pd.DataFrame:
         SELECT
             f.carrier,
             a.name AS airline,
-            ROUND(AVG(CASE WHEN f.dep_delay > 0 AND f.cancelled = 0 THEN f.dep_delay END), 1) AS avg_dep_delay,
-            ROUND(AVG(CASE WHEN f.arr_delay > 0 AND f.cancelled = 0 THEN f.arr_delay END), 1) AS avg_arr_delay
+            ROUND(AVG(CASE WHEN f.dep_delay > 0 AND f.dep_time IS NOT NULL THEN f.dep_delay END), 1) AS avg_dep_delay,
+            ROUND(AVG(CASE WHEN f.arr_delay > 0 AND f.dep_time IS NOT NULL THEN f.arr_delay END), 1) AS avg_arr_delay
         FROM flights f
         LEFT JOIN airlines a ON f.carrier = a.carrier
         WHERE 1=1 {carrier_filter} {origin_filter}
@@ -129,7 +129,7 @@ def get_carrier_monthly_trend_df(carriers: list[str], origin: str) -> pd.DataFra
             f.month,
             f.carrier,
             a.name AS airline,
-            ROUND(AVG(CASE WHEN f.dep_delay <= 15 AND f.cancelled = 0 THEN 100.0 ELSE 0.0 END), 1) AS on_time_pct
+            ROUND(AVG(CASE WHEN f.dep_delay <= 15 AND f.dep_time IS NOT NULL THEN 100.0 ELSE 0.0 END), 1) AS on_time_pct
         FROM flights f
         LEFT JOIN airlines a ON f.carrier = a.carrier
         WHERE 1=1 {carrier_filter} {origin_filter}
@@ -186,7 +186,7 @@ def get_carrier_delay_buckets_df(carriers: list[str], origin: str) -> pd.DataFra
             SUM(CASE WHEN f.dep_delay > 60 THEN 1 ELSE 0 END) AS delay_over_60
         FROM flights f
         LEFT JOIN airlines a ON f.carrier = a.carrier
-        WHERE f.cancelled = 0 {carrier_filter} {origin_filter}
+        WHERE f.dep_time IS NOT NULL {carrier_filter} {origin_filter}
         GROUP BY f.carrier, a.name
     """
     return query_df(sql)
