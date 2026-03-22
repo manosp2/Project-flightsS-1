@@ -10,14 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY "requirements.txt " .
+COPY requirements.txt .
 
 # Install Python dependencies in a builder stage
 FROM base AS builder
 
 WORKDIR /app
-COPY "requirements.txt " .
-RUN pip install --user --no-cache-dir -r "requirements.txt "
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Final production image
 FROM python:3.11-slim
